@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d5f8a">
+<meta name="color-scheme" content="light dark">
+<title>Playlist Maker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+/* Layout: one narrow worksheet column. 1 Music files, 2 Song names, 3 Matches, 4 Save. */
+:root{--bg:#eef1f4;--panel:#fff;--ink:#14202c;--mute:#566577;--line:#d3dae2;--accent:#1d5f8a;--accent-ink:#fff;--soft:#e4eaf0;
+--ok:#1b6b3c;--ok-bg:#dff2e6;--warn:#8a4b00;--warn-bg:#fdecc8;--sev:#5b3fa0;--sev-bg:#e9e2f8;--bad:#a12b2b;--bad-bg:#f8dcdc;
+--sans:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f161d;--panel:#18222c;--ink:#e6edf4;--mute:#97a6b6;--line:#2c3947;--accent:#6bb3e0;--accent-ink:#06121b;--soft:#243240;
+--ok:#7fd9a3;--ok-bg:#183a28;--warn:#f0c46a;--warn-bg:#40300f;--sev:#c3b0f5;--sev-bg:#2e2650;--bad:#f1a0a0;--bad-bg:#46201f;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f161d;--panel:#18222c;--ink:#e6edf4;--mute:#97a6b6;--line:#2c3947;--accent:#6bb3e0;--accent-ink:#06121b;--soft:#243240;
+--ok:#7fd9a3;--ok-bg:#183a28;--warn:#f0c46a;--warn-bg:#40300f;--sev:#c3b0f5;--sev-bg:#2e2650;--bad:#f1a0a0;--bad-bg:#46201f;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--sans);padding-block:18px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:44rem;margin:0 auto;display:grid;gap:14px}
+h1{font-size:1.35rem;margin:0;font-weight:600;text-wrap:balance}
+.lede{margin:4px 0 0;color:var(--mute);font-size:.92rem}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+h2{font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:var(--mute);margin:0 0 10px;font-weight:600}
+label{display:grid;gap:4px;font-size:.85rem;color:var(--mute);font-weight:500;min-width:0}
+input[type=text],textarea,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:9px 10px;min-height:44px;width:100%;min-width:0}
+textarea{min-height:11rem;font-family:var(--mono);font-size:.85rem;line-height:1.45;resize:vertical}
+input[type=text].mono{font-family:var(--mono);font-size:.85rem}
+button,.btn{font:600 .92rem var(--sans);min-height:44px;padding:0 14px;border-radius:7px;border:1px solid var(--line);background:var(--soft);color:var(--ink);cursor:pointer;position:relative;display:inline-flex;align-items:center;justify-content:center;text-align:center}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.stat{font-family:var(--mono);font-size:.82rem;color:var(--mute);margin-top:10px;overflow-wrap:anywhere}
+.note{font-size:.84rem;color:var(--mute);margin:8px 0 0}
+.note b{color:var(--ink);font-weight:600}
+.warnbox{margin-top:10px;padding:9px 11px;border-radius:7px;background:var(--warn-bg);color:var(--warn);font-size:.85rem}
+.sum{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{font-size:.8rem;font-weight:600;padding:3px 9px;border-radius:99px;font-variant-numeric:tabular-nums}
+.c-exact{background:var(--ok-bg);color:var(--ok)}.c-close{background:var(--warn-bg);color:var(--warn)}.c-several,.c-check{background:var(--sev-bg);color:var(--sev)}.c-missing{background:var(--bad-bg);color:var(--bad)}
+.items{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.item{border:1px solid var(--line);border-radius:8px;padding:10px;display:grid;gap:7px;min-width:0}
+.item .top{display:flex;gap:8px;align-items:baseline;justify-content:space-between;flex-wrap:wrap}
+.item .t{font-weight:600;overflow-wrap:anywhere}
+.item .why{font-size:.8rem;color:var(--mute)}
+.item select{font-family:var(--mono);font-size:.78rem}
+.item .path{font-family:var(--mono);font-size:.76rem;color:var(--mute);overflow-wrap:anywhere}
+.tools{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:10px;font-size:.88rem}
+.tools label{display:flex;flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-weight:400;font-size:.88rem}
+.tools input[type=checkbox]{width:20px;height:20px}
+.steps{margin:8px 0 0;padding-left:1.2rem;font-size:.88rem;color:var(--ink)}.steps li{margin:3px 0}
+details{margin-top:10px;font-size:.88rem}summary{cursor:pointer;color:var(--accent);font-weight:600;min-height:32px}
+pre.cmd{font-family:var(--mono);font-size:.76rem;background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:9px;overflow-x:auto;margin:6px 0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:8px;font-size:.88rem;max-width:90vw;z-index:5}
+@media (prefers-reduced-motion:no-preference){.toast{animation:in .15s ease-out}@keyframes in{from{opacity:0;transform:translate(-50%,6px)}}}
+</style>
+</head><body>
+<main>
+ <header>
+  <h1>Playlist Maker</h1>
+  <p class="lede">Turn a plain list of song names into an .m3u8 playlist for AIMP or any other music player. Everything runs on this page; nothing is uploaded.</p>
+ </header>
+
+ <section class="panel" aria-labelledby="h1s">
+  <h2 id="h1s">1 · Your music files</h2>
+  <label for="base">Music folder on the phone
+   <input id="base" type="text" class="mono" value="/storage/emulated/0/Music/" autocomplete="off" spellcheck="false" autocapitalize="off">
+  </label>
+  <div class="row">
+   <span class="btn">Load file list (.txt)<input id="lfile" type="file" accept=".txt,.m3u,.m3u8,.csv,text/plain" aria-label="Load a text file listing your music files"></span>
+   <span class="btn">Choose music folder<input id="lfolder" type="file" webkitdirectory multiple aria-label="Choose your music folder"></span>
+   <span class="btn">Choose files<input id="lfiles" type="file" multiple accept="audio/*,.opus,.mp3,.m4a,.flac,.ogg" aria-label="Choose music files"></span>
+   <button id="sample" type="button">Try an example list</button>
+  </div>
+  <div class="stat" id="lstat">No music files loaded yet.</div>
+  <p class="warnbox" id="lwarn" hidden></p>
+  <details>
+   <summary>How do I get a file list?</summary>
+   <p class="note">First try <b>Choose music folder</b> and pick the folder above. Some phone browsers only let you pick single files; if the count looks wrong, use a list file instead. On your Zorin PC, with the phone's SD card or folder copied or mounted, run this in a terminal (change the first path), then send the .txt to your phone:</p>
+   <pre class="cmd">cd "/path/to/That One Year(s)" &amp;&amp; find . -type f \( -iname '*.opus' -o -iname '*.mp3' -o -iname '*.m4a' -o -iname '*.flac' \) | sort &gt; ~/music-list.txt</pre>
+   <p class="note"><b>Choose files</b> works for one folder only: it can't see subfolders, so every file is assumed to sit directly in the music folder.</p>
+  </details>
+ </section>
+
+ <section class="panel" aria-labelledby="h2s">
+  <h2 id="h2s">2 · Song names</h2>
+  <label for="pname">Playlist name
+   <input id="pname" type="text" value="My Playlist" autocomplete="off">
+  </label>
+  <label for="names" style="margin-top:10px">One song per line. Put the artist in brackets at the end when two artists share a title.
+   <textarea id="names" placeholder="It May Rain Sometime&#10;Love Of My Life (Keith Martin)&#10;Wichita Lineman" spellcheck="false" aria-describedby="nstat"></textarea>
+  </label>
+  <div class="row">
+   <span class="btn">Load names (.txt)<input id="nfile" type="file" accept=".txt,text/plain" aria-label="Load a text file of song names"></span>
+   <button id="go" class="primary" type="button">Find the songs</button>
+  </div>
+  <div class="stat" id="nstat"></div>
+ </section>
+
+ <section class="panel" id="res" aria-labelledby="h3s" hidden>
+  <h2 id="h3s">3 · Matches</h2>
+  <div class="sum" id="sum"></div>
+  <div class="tools">
+   <label for="onlyf"><input type="checkbox" id="onlyf">Show only songs that need a look</label>
+   <label for="rel"><input type="checkbox" id="rel">Use paths relative to the playlist file</label>
+  </div>
+  <ul class="items" id="items"></ul>
+ </section>
+
+ <section class="panel" id="outp" aria-labelledby="h4s" hidden>
+  <h2 id="h4s">4 · Save</h2>
+  <div class="stat" id="ostat"></div>
+  <div class="row">
+   <button id="save" class="primary" type="button">Save playlist file</button>
+   <button id="share" type="button" hidden>Share…</button>
+   <button id="copy" type="button">Copy playlist text</button>
+   <button id="copym" type="button">Copy list of missing songs</button>
+  </div>
+  <ol class="steps">
+   <li>Press <b>Save playlist file</b>. It is saved as an .m3u8 file, usually in your Downloads folder.</li>
+   <li>In your music player, import it as a playlist.</li>
+  </ol>
+  <p class="note" id="relnote" hidden>Relative paths only work when the playlist file sits in the music folder you entered above.</p>
+  <details><summary>Preview the playlist text</summary><pre class="cmd" id="prev" style="max-height:16rem;overflow:auto"></pre></details>
+ </section>
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script>
+// Playlist matching engine: names list + file listing -> matches.
+const AUDIO=/\.(opus|mp3|m4a|flac|ogg|oga|wav|aac|wma|webm)$/i;
+const JUNK=/\b(official|video|audio|lyric|lyrics|hd|hq|4k|mv|visualizer|music video|remastered|remaster)\b/i;
+function nrm(s){
+  s=String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  s=s.replace(/&/g,' and ').replace(/['‘’`´]/g,'');
+  return s.replace(/[^a-z0-9]+/g,' ').trim()}
+function stripJunk(b){
+  b=b.replace(/\[[^\]]*\]/g,' ').replace(/\(([^)]*)\)/g,(m,x)=>JUNK.test(x)?' ':m);
+  b=b.replace(/\b(official\s+)?(music\s+)?(video|audio|lyric video|lyrics)\s*$/i,' ');
+  return b.replace(/^\s*\d{1,3}\s*[-._)]\s+/,'')}
+function fileInfo(path){
+  const parts=path.split('/'),base=parts[parts.length-1].replace(/\.[^.]+$/,'');
+  const clean=stripJunk(base);
+  const segs=clean.split(/\s+[-–—]\s+|\s+_\s+/).map(nrm).filter(Boolean);
+  const full=nrm(clean);
+  const nop=nrm(clean.replace(/\s*\([^)]*\)\s*$/,''));if(nop&&!segs.includes(nop))segs.push(nop);
+  const folders=nrm(parts.slice(0,-1).join(' '));
+  return {path,stem:parts.slice(0,-1).join('/')+'|'+full,ext:(path.match(/\.([^.]+)$/)||[])[1].toLowerCase(),segs,full,ftoks:(full+' '+folders).split(' '),base}}
+function parseLine(line){
+  line=line.trim().replace(/^[-*•\d]+[.)]\s+(?=\S)/,'');
+  let hint='',t=line;const m=line.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+  if(m&&m[1].trim()){t=m[1].trim();hint=nrm(m[2])}
+  return {raw:line,title:t,q:nrm(t),hint}}
+function lev(a,b){
+  if(a===b)return 0;if(!a.length)return b.length;if(!b.length)return a.length;
+  let p=Array.from({length:b.length+1},(_,i)=>i);
+  for(let i=1;i<=a.length;i++){const c=[i];for(let j=1;j<=b.length;j++)c[j]=Math.min(p[j]+1,c[j-1]+1,p[j-1]+(a[i-1]===b[j-1]?0:1));p=c}
+  return p[b.length]}
+function hasSeq(ft,qt){for(let i=0;i+qt.length<=ft.length;i++){let ok=true;for(let j=0;j<qt.length;j++)if(ft[i+j]!==qt[j]){ok=false;break}if(ok)return i}return -1}
+function scoreOne(Q,F){
+  const q=Q.q;if(!q)return 0;let s=0;
+  const hintOk=Q.hint&&Q.hint.split(' ').every(t=>F.ftoks.includes(t));
+  if(F.segs.includes(q)||F.full===q)s=100;
+  else{
+    const qt=q.split(' '),ft=F.full.split(' '),at=hasSeq(ft,qt);
+    if(at>=0){
+      const rest=ft.filter((_,i)=>i<at||i>=at+qt.length);
+      if(Q.hint&&rest.length&&rest.every(t=>Q.hint.split(' ').includes(t)))s=98;
+      else s=qt.length>=3?80:60}
+    else{
+      let best=0;for(const g of F.segs.concat([F.full])){
+        if(Math.abs(g.length-q.length)>Math.max(3,q.length*.2))continue;
+        const sim=1-lev(q,g)/Math.max(q.length,g.length);if(sim>best)best=sim}
+      if(best>=.86)s=70+best*25;else s=0}}
+  if(s&&hintOk)s=Math.min(103,s+3);
+  return s}
+function matchOne(Q,files){
+  const c=[];for(const F of files){const s=scoreOne(Q,F);if(s>=55)c.push({F,s})}
+  c.sort((a,b)=>b.s-a.s||(a.F.ext==='opus'?-1:0)-(b.F.ext==='opus'?-1:0)||(a.F.path<b.F.path?-1:1));
+  const seen=new Map();for(const x of c){const k=x.F.stem;if(!seen.has(k))seen.set(k,x)}
+  const cands=[...seen.values()];
+  let status='missing',pick=-1;
+  if(cands.length){
+    const top=cands[0].s,tied=cands.filter(x=>x.s>=top-1&&top>=95);
+    if(top>=95&&tied.length===1){status='exact';pick=0}
+    else if(top>=95){status='several';pick=-1}
+    else if(top>=85){status='close';pick=0}
+    else{status='check';pick=-1}}
+  return {Q,cands:cands.slice(0,8),status,pick}}
+function matchAll(text,files){return text.split(/\r?\n/).map(parseLine).filter(Q=>Q.q).map(Q=>matchOne(Q,files))}
+function buildListing(lines,base){
+  base=(base||'').replace(/\\/g,'/').replace(/\/+$/,'');const out=[];
+  for(let l of lines){l=l.trim().replace(/\\/g,'/');if(!l||!AUDIO.test(l))continue;
+    let rel=l;if(base&&l.startsWith(base+'/'))rel=l.slice(base.length+1);else if(l.startsWith('/')){const i=l.indexOf('/Music/');rel=i>=0?l.slice(i+7):l.replace(/^\/+/,'')}
+    out.push(rel.replace(/^\.\//,''))}
+  return out}
+function m3u8(entries,base,relative){
+  base=base.replace(/\\/g,'/').replace(/\/+$/,'');let o='#EXTM3U\n';
+  for(const e of entries)o+='#EXTINF:-1,'+e.title.replace(/[\r\n]+/g,' ')+'\n'+(relative?e.rel:base+'/'+e.rel)+'\n';
+  return o}
+
+
+const $=id=>document.getElementById(id);
+const SAMPLE_NAMES="Yesterday\nImagine\nHey Jude\nLet It Be\nBohemian Rhapsody\nHotel California\nStairway To Heaven\nWonderful Tonight\nTears In Heaven\nAll Of Me\nPerfect (Ed Sheeran)\nHallelujah";
+let FILES=[],REL=[],R=[],SEL=[],lmode='';
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,3200)}
+const fmt=n=>n.toLocaleString('en-US');
+function setListing(rels,how){
+  REL=[...new Set(rels)];FILES=REL.map(E_fileInfo);lmode=how;
+  const ops=REL.filter(r=>/\.opus$/i.test(r)).length,dirs=new Set(REL.map(r=>r.split('/').slice(0,-1).join('/'))).size;
+  $('lstat').textContent=REL.length?fmt(REL.length)+' audio files loaded ('+fmt(ops)+' .opus, '+fmt(REL.length-ops)+' other) in '+fmt(dirs)+' folder'+(dirs>1?'s':'')+(how==='example'?' · EXAMPLE, not your music':''):'No audio files found in that selection.';
+  const w=$('lwarn');
+  if(how==='files'){w.hidden=false;w.textContent='These files were picked one by one, so subfolders are unknown. Paths will assume every file sits directly in the music folder.'}
+  else if(REL.length&&dirs===1&&REL.some(r=>r.includes('/'))===false&&how==='folder'){w.hidden=false;w.textContent='Your phone browser returned no subfolder information. If your songs are in subfolders, use a file list instead.'}
+  else w.hidden=true;
+  if(how!=='example')store.set('pl_listing',REL.join('\n'));
+  $('res').hidden=true;$('outp').hidden=true}
+const E_fileInfo=fileInfo;
+function readText(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(String(r.result));r.onerror=no;r.readAsText(f)})}
+$('lfile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const t=await readText(f);setListing(buildListing(t.split(/\r?\n/),$('base').value),'list')}catch(x){toast('That file could not be read.')}};
+$('lfolder').onchange=e=>{const fs=[...e.target.files].filter(f=>AUDIO.test(f.name));
+  setListing(fs.map(f=>{const p=(f.webkitRelativePath||f.name).split('/');return p.length>1?p.slice(1).join('/'):p[0]}),'folder')};
+$('lfiles').onchange=e=>setListing([...e.target.files].filter(f=>AUDIO.test(f.name)).map(f=>f.name),'files');
+$('nfile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{$('names').value=(await readText(f)).trim();$('pname').value=f.name.replace(/\.[^.]+$/,'');names()}catch(x){toast('That file could not be read.')}};
+function names(){const n=$('names').value.split(/\r?\n/).filter(l=>l.trim()).length;$('nstat').textContent=n?n+' song'+(n>1?'s':'')+' in the list':'';store.set('pl_names',$('names').value);store.set('pl_pname',$('pname').value)}
+$('names').oninput=names;$('pname').oninput=names;$('base').oninput=()=>store.set('pl_base',$('base').value);
+$('sample').onclick=()=>{
+  let s=11;const rnd=()=>(s=(s*1103515245+12345)&0x7fffffff)/0x7fffffff;
+  const dirs=['Artists A-L','Artists M-Z','Mixed','Pinoy'],arts=['Various Artists','Westlife','Keith Martin','Martin Nievera','Lindsay Custodio','Prince','Anna Fegi','Glen Campbell'];
+  const rels=[];SAMPLE_NAMES.split('\n').forEach((l,i)=>{if(rnd()<.18)return;const t=l.replace(/\s*\([^)]*\)\s*$/,'').replace('Teh','The');
+    const a=arts[Math.floor(rnd()*arts.length)],d=dirs[Math.floor(rnd()*dirs.length)],r=rnd();
+    rels.push(d+'/'+(r<.5?a+' - '+t+' (Official Video)':r<.8?t:a+' - '+t+' ['+Math.random().toString(36).slice(2,13)+']')+'.opus')});
+  rels.push('Mixed/Stevie Wonder - As.opus','Mixed/George Michael - As.opus','Mixed/Bridges Over Troubled Water.opus');
+  for(let i=0;i<150;i++)rels.push(dirs[i%4]+'/Other Artist '+i+' - Unrelated Song '+i+'.opus');
+  setListing(rels,'example');if(!$('names').value.trim()){$('names').value=SAMPLE_NAMES;names()}toast('Example list loaded. Press Find the songs.')};
+function why(m){return m.status==='exact'?'Exact name match':m.status==='close'?'Close match, check the spelling':m.status==='several'?'Several files fit. Pick one.':m.status==='check'?'Only a partial match. Check it.':'Not found'}
+function run(){
+  if(!FILES.length){toast('Load your music files first (step 1).');return}
+  const txt=$('names').value;if(!txt.trim()){toast('Add some song names first.');return}
+  R=matchAll(txt,FILES);SEL=R.map(m=>m.pick);draw()}
+function draw(){
+  const c={exact:0,close:0,several:0,check:0,missing:0};R.forEach(m=>c[m.status]++);
+  const inc=SEL.filter(i=>i>=0).length;
+  $('sum').innerHTML=[['exact','exact'],['close','close'],['several','several files'],['check','partial'],['missing','not found']].filter(x=>c[x[0]]).map(x=>'<span class="chip c-'+x[0]+'">'+c[x[0]]+' '+x[1]+'</span>').join('');
+  const only=$('onlyf').checked,ul=$('items');ul.innerHTML='';
+  R.forEach((m,k)=>{
+    if(only&&m.status==='exact')return;
+    const li=document.createElement('li');li.className='item';
+    const top=document.createElement('div');top.className='top';
+    top.innerHTML='<span class="t"></span><span class="chip c-'+m.status+'">'+({exact:'exact',close:'close',several:'several',check:'partial',missing:'not found'})[m.status]+'</span>';
+    top.firstChild.textContent=m.Q.raw;li.appendChild(top);
+    if(m.cands.length){
+      const s=document.createElement('select');s.setAttribute('aria-label','File for '+m.Q.raw);
+      const o0=document.createElement('option');o0.value='-1';o0.textContent='Leave this song out';s.appendChild(o0);
+      m.cands.forEach((x,i)=>{const o=document.createElement('option');o.value=i;o.textContent=x.F.path;s.appendChild(o)});
+      s.value=String(SEL[k]);const pp=document.createElement('div');pp.className='path';const sp=()=>{pp.textContent=SEL[k]>=0?m.cands[SEL[k]].F.path:''};sp();s.onchange=()=>{SEL[k]=+s.value;sp();out()};li.appendChild(s);li.appendChild(pp)}
+    const w=document.createElement('div');w.className='why';w.textContent=why(m);li.appendChild(w);ul.appendChild(li)});
+  $('res').hidden=false;out()}
+function entries(){const e=[];R.forEach((m,k)=>{if(SEL[k]>=0)e.push({title:m.Q.title,rel:m.cands[SEL[k]].F.path})});return e}
+function text(){return m3u8(entries(),$('base').value||'',$('rel').checked)}
+function out(){
+  const e=entries(),miss=R.length-e.length;
+  $('outp').hidden=false;$('ostat').textContent=e.length+' of '+R.length+' songs will be in the playlist'+(miss?' · '+miss+' left out':'');
+  $('relnote').hidden=!$('rel').checked;$('prev').textContent=text();$('save').disabled=!e.length;$('share').disabled=!e.length;$('copy').disabled=!e.length;$('copym').disabled=!miss}
+$('onlyf').onchange=draw;$('rel').onchange=out;$('go').onclick=run;
+async function copyText(t,msg){try{await navigator.clipboard.writeText(t);toast(msg)}catch(e){const p=$('prev');p.textContent=t;const d=p.closest('details');d.open=true;const r=document.createRange();r.selectNodeContents(p);const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Copy was blocked. The text is selected: long-press and Copy.')}}
+$('copy').onclick=()=>copyText(text(),'Playlist text copied');
+$('copym').onclick=()=>copyText(R.filter((m,k)=>SEL[k]<0).map(m=>m.Q.raw).join('\n'),'Missing songs copied');
+function plFile(){const nm=($('pname').value.trim()||'playlist').replace(/[\\/:*?"<>|]+/g,' ').trim()+'.m3u8';return {nm,blob:new Blob([text()],{type:'audio/x-mpegurl'})}}
+$('save').onclick=()=>{
+  const f=plFile(),url=URL.createObjectURL(f.blob),a=document.createElement('a');
+  a.href=url;a.download=f.nm;a.rel='noopener';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);toast('Saved '+f.nm+'. Look in your Downloads folder.')};
+try{if(navigator.canShare&&navigator.canShare({files:[new File(['#EXTM3U'],'a.m3u8',{type:'audio/x-mpegurl'})]}))$('share').hidden=false}catch(e){}
+$('share').onclick=async()=>{const f=plFile();try{await navigator.share({files:[new File([f.blob],f.nm,{type:'audio/x-mpegurl'})],title:f.nm})}catch(e){if(e&&e.name!=='AbortError')toast('Sharing is not available. Use Save instead.')}};
+// restore
+(function(){const b=store.get('pl_base'),n=store.get('pl_names'),p=store.get('pl_pname'),l=store.get('pl_listing');
+  if(b)$('base').value=b;$('names').value=n||'';if(p)$('pname').value=p;
+  names();if(l)setListing(l.split('\n').filter(Boolean),'list')})();
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+</script>
+</body></html>
